@@ -92,7 +92,7 @@ class MemoizedKeyElements {
     readonly keyboard: Keyboard,
     readonly shape: KeyShape,
   ) {
-    const Component = makeKeyComponent(keyboard.layout.language, shape);
+    const Component = makeKeyComponent(keyboard.layout.language, shape, keyboard);
     this.component = Component;
     this.state0 = (
       <Component

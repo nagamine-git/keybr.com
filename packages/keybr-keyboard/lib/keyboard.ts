@@ -6,6 +6,7 @@ import { KeyModifier } from "./keymodifier.ts";
 import { KeyShape } from "./keyshape.ts";
 import { getExampleLetters, getExampleText } from "./language.ts";
 import { type Layout } from "./layout.ts";
+import { TSUKI_2_263_LEARNING_ORDER } from "./layout/ja_tsuki_2_263.ts";
 import {
   type CharacterDict,
   type DeadCharacter,
@@ -33,10 +34,14 @@ export class Keyboard {
     const shapes = new Map<KeyId, KeyShape>();
     const zones = new Map<ZoneId, KeyShape[]>();
 
-    for (const [id, [a = null, b = null, c = null, d = null]] of Object.entries(
-      characterDict,
-    )) {
-      characters.set(id, new KeyCharacters(id, a, b, c, d));
+    for (const [id, chars] of Object.entries(characterDict)) {
+      const [a = null, b = null, c = null, d = null] = chars;
+      // For chord layouts (length > 4), pass the full character array
+      const keyChars =
+        chars.length > 4
+          ? new KeyCharacters(id, a, b, c, d, chars)
+          : new KeyCharacters(id, a, b, c, d);
+      characters.set(id, keyChars);
     }
 
     for (const { id, a, b, c, d } of characters.values()) {
@@ -111,6 +116,10 @@ export class Keyboard {
   }: Partial<ZoneFilter> = {}): WeightedCodePointSet {
     const list: CodePoint[] = [];
     const weights = new Map<CodePoint, number>();
+
+    // Check if this is 月配列2-263 layout - use custom learning order
+    const useTsukiLearningOrder = this.layout.id === "ja-tsuki-2-263";
+
     for (const combo of this.combos.values()) {
       const shape = this.getShape(combo.id);
       if (
@@ -120,16 +129,54 @@ export class Keyboard {
         (zones == null || shape?.inAnyZone(zones))
       ) {
         list.push(combo.codePoint);
-        switch (shape?.row) {
-          case "home":
-            weights.set(combo.codePoint, 1);
-            break;
-          case "top":
-            weights.set(combo.codePoint, 2);
-            break;
+
+        if (useTsukiLearningOrder) {
+          // Use custom learning order for 月配列2-263
+          const customWeight = TSUKI_2_263_LEARNING_ORDER.get(combo.codePoint);
+          if (customWeight != null) {
+            weights.set(combo.codePoint, customWeight);
+          }
+        } else {
+          // Default behavior for other layouts
+          switch (shape?.row) {
+            case "home":
+              weights.set(combo.codePoint, 1);
+              break;
+            case "top":
+              weights.set(combo.codePoint, 2);
+              break;
+          }
         }
       }
     }
+
+    // For chord layouts, also include extended character array characters (slots 4-6)
+    for (const keyChars of this.characters.values()) {
+      if (keyChars.characters && keyChars.characters.length > 4) {
+        const shape = this.getShape(keyChars.id);
+        if (zones == null || shape?.inAnyZone(zones)) {
+          // Process chord layer characters (slots 4, 5, 6)
+          for (let i = 4; i < keyChars.characters.length; i++) {
+            const char = keyChars.characters[i];
+            if (KeyCharacters.isCodePoint(char)) {
+              list.push(char);
+
+              if (useTsukiLearningOrder) {
+                // Use custom learning order for chord characters
+                const customWeight = TSUKI_2_263_LEARNING_ORDER.get(char);
+                if (customWeight != null) {
+                  weights.set(char, customWeight);
+                }
+              } else {
+                // Default weight for chord characters
+                weights.set(char, 3);
+              }
+            }
+          }
+        }
+      }
+    }
+
     const codePoints = new Set(list.sort((a, b) => a - b));
     return new (class implements WeightedCodePointSet {
       [Symbol.iterator](): IterableIterator<CodePoint> {

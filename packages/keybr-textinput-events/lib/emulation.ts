@@ -4,8 +4,10 @@ import {
   keyboardProps,
   KeyModifier,
 } from "@keybr/keyboard";
+import { type KeyId } from "@keybr/keyboard/lib/types.ts";
 import { type Settings } from "@keybr/settings";
 import { type CodePoint } from "@keybr/unicode";
+import { chordEmulation } from "./chord-emulation.ts";
 import { isTextInput } from "./modifiers.ts";
 import { TimeToType } from "./timetotype.ts";
 import {
@@ -18,7 +20,14 @@ export function emulateLayout(
   settings: Settings,
   keyboard: Keyboard,
   target: InputListener,
+  getDepressedKeys?: () => readonly KeyId[],
 ): InputListener {
+  // Check for chord layout first (uses prefix shift, not simultaneous detection)
+  if (keyboard.layout.chordMetadata) {
+    return chordEmulation(keyboard, target);
+  }
+
+  // Standard emulation for non-chord layouts
   if (keyboard.layout.emulate) {
     switch (settings.get(keyboardProps.emulation)) {
       case Emulation.Forward:
@@ -137,7 +146,7 @@ function fixCode(
   return { type, timeStamp, code, key, modifiers };
 }
 
-function toKeyModifier(modifiers: readonly ModifierId[]): KeyModifier {
+export function toKeyModifier(modifiers: readonly ModifierId[]): KeyModifier {
   return KeyModifier.from(
     modifiers.includes("Shift"),
     modifiers.includes("AltGraph"),

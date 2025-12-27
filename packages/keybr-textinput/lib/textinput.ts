@@ -123,8 +123,24 @@ export class TextInput {
   }
 
   clearChar(): Feedback {
-    this.#garbage.pop();
-    this.#typo = true;
+    const garbageItem = this.#garbage.pop();
+    console.log('[TEXTINPUT clearChar] Removed from garbage:', garbageItem);
+
+    // For post-modifier transformations (dakuten/handakuten),
+    // garbage had exactly one item (the base character) which we just removed.
+    // We don't touch steps at all - just clear the typo flag so the next
+    // appendChar (with the transformed character) will be accepted as correct.
+    if (this.#garbage.length === 0 && garbageItem !== undefined) {
+      // This was a post-modifier transformation (garbage had one item, now empty)
+      console.log('[TEXTINPUT clearChar] Post-modifier detected - cleared garbage, ready for transformed character');
+      this.#typo = false;
+    } else if (this.#steps.length > 0) {
+      // Normal backspace - remove step and set typo flag
+      const removed = this.#steps.pop();
+      console.log('[TEXTINPUT clearChar] Normal backspace - removed step:', removed);
+      this.#typo = true;
+    }
+    console.log('[TEXTINPUT clearChar] typo flag:', this.#typo, 'garbage length:', this.#garbage.length, 'pos:', this.pos);
     return this.#return(Feedback.Succeeded);
   }
 
