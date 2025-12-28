@@ -24,7 +24,7 @@ export function emulateLayout(
 ): InputListener {
   // Check for chord layout first (uses prefix shift, not simultaneous detection)
   if (keyboard.layout.chordMetadata) {
-    return chordEmulation(keyboard, target);
+    return chordEmulationWithTiming(keyboard, target);
   }
 
   // Standard emulation for non-chord layouts
@@ -37,6 +37,52 @@ export function emulateLayout(
     }
   }
   return target;
+}
+
+/**
+ * Wraps chord emulation with timing measurement.
+ */
+function chordEmulationWithTiming(
+  keyboard: Keyboard,
+  target: InputListener,
+): InputListener {
+  const timeToType = new TimeToType();
+  const chordListener = chordEmulation(keyboard, {
+    onKeyDown: (event) => {
+      target.onKeyDown(event);
+    },
+    onKeyUp: (event) => {
+      target.onKeyUp(event);
+    },
+    onInput: (event) => {
+      // Add timing measurement to input events from chord emulation
+      if (event.inputType === "appendChar" || event.inputType === "clearChar") {
+        // If timeToType > 0, it's a post-modifier transformation with already calculated timing
+        // Otherwise, measure timing from keyboard events
+        const measuredTime = event.timeToType > 0 ? event.timeToType : timeToType.measure(event);
+        target.onInput({
+          ...event,
+          timeToType: measuredTime,
+        });
+      } else {
+        target.onInput(event);
+      }
+    },
+  });
+
+  return {
+    onKeyDown: (event) => {
+      timeToType.add(event);
+      chordListener.onKeyDown(event);
+    },
+    onKeyUp: (event) => {
+      timeToType.add(event);
+      chordListener.onKeyUp(event);
+    },
+    onInput: (event) => {
+      chordListener.onInput(event);
+    },
+  };
 }
 
 /**

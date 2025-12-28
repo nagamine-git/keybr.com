@@ -52,7 +52,7 @@ export function chordEmulation(
       console.log('[FLUSH] Base character lookup for', code, ':', codePoint ? String.fromCodePoint(codePoint) : 'null');
 
       if (codePoint !== null) {
-        postModBuffer.recordChar(codePoint);
+        postModBuffer.recordChar(codePoint, timeStamp);
 
         const inputEvent: IInputEvent = {
           type: "input",
@@ -76,19 +76,23 @@ export function chordEmulation(
         // Flush pending pre-modifier before post-modification
         flushPendingPreModifier();
 
-        const result = postModBuffer.tryModify(postModFn);
+        const result = postModBuffer.tryModify(postModFn, event.timeStamp);
         console.log('[POST-MOD] tryModify result:', result);
         if (result.success && result.newChar !== null && result.oldChar !== null) {
           console.log('[POST-MOD] Transforming', String.fromCodePoint(result.oldChar), '→', String.fromCodePoint(result.newChar));
+          // Calculate the time from when the original character was typed to now
+          const timeToType = event.timeStamp - result.timeStamp;
+          console.log('[POST-MOD] Calculated timeToType:', timeToType, 'ms');
+
           // Post-modification successful - emit clearChar to remove the old char from stats, then append new char
           const clearEvent: IInputEvent = {
             type: "input",
             timeStamp: event.timeStamp,
             inputType: "clearChar",
             codePoint: result.oldChar,
-            timeToType: 0,
+            timeToType: timeToType,
           };
-          console.log('[POST-MOD] Sending clearEvent for', String.fromCodePoint(result.oldChar));
+          console.log('[POST-MOD] Sending clearEvent for', String.fromCodePoint(result.oldChar), 'with timeToType:', timeToType);
           target.onInput(clearEvent);
 
           const appendEvent: IInputEvent = {
@@ -96,9 +100,9 @@ export function chordEmulation(
             timeStamp: event.timeStamp,
             inputType: "appendChar",
             codePoint: result.newChar,
-            timeToType: 0,
+            timeToType: timeToType,
           };
-          console.log('[POST-MOD] Sending appendEvent for', String.fromCodePoint(result.newChar));
+          console.log('[POST-MOD] Sending appendEvent for', String.fromCodePoint(result.newChar), 'with timeToType:', timeToType);
           target.onInput(appendEvent);
         } else {
           console.log('[POST-MOD] Modification failed or invalid result');
@@ -142,7 +146,7 @@ export function chordEmulation(
 
         if (codePoint !== null) {
           // Record the character in the post-modifier buffer
-          postModBuffer.recordChar(codePoint);
+          postModBuffer.recordChar(codePoint, event.timeStamp);
 
           // Emit input event
           const inputEvent: IInputEvent = {

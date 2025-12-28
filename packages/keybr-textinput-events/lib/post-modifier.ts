@@ -10,6 +10,8 @@ export type PostModifyResult = {
   readonly newChar: CodePoint | null;
   /** The old character that was replaced (if successful) or null */
   readonly oldChar: CodePoint | null;
+  /** The timestamp when the old character was originally typed */
+  readonly timeStamp: number;
 };
 
 /**
@@ -39,41 +41,47 @@ export type PostModifyResult = {
  */
 export class PostModifierBuffer {
   private lastChar: CodePoint | null = null;
+  private lastTimeStamp: number = 0;
 
   /**
    * Records a character that was just emitted.
    * This character can be modified by subsequent post-modifier key presses.
    *
    * @param char The character code point to record
+   * @param timeStamp The timestamp when the character was typed
    */
-  recordChar(char: CodePoint): void {
+  recordChar(char: CodePoint, timeStamp: number): void {
     this.lastChar = char;
+    this.lastTimeStamp = timeStamp;
   }
 
   /**
    * Attempts to apply a post-modification function to the last recorded character.
    *
    * @param modifierFn Function that transforms a character (e.g., adds dakuten)
-   * @returns Result object with success flag and modified character
+   * @param currentTimeStamp The timestamp when the modifier key was pressed
+   * @returns Result object with success flag, modified character, and original timestamp
    */
-  tryModify(modifierFn: (char: CodePoint) => CodePoint | null): PostModifyResult {
+  tryModify(modifierFn: (char: CodePoint) => CodePoint | null, currentTimeStamp: number): PostModifyResult {
     // No previous character to modify
     if (this.lastChar === null) {
-      return { success: false, newChar: null, oldChar: null };
+      return { success: false, newChar: null, oldChar: null, timeStamp: 0 };
     }
 
     // Try to apply the modification
     const oldChar = this.lastChar;
+    const timeStamp = this.lastTimeStamp;
     const modified = modifierFn(oldChar);
 
     if (modified !== null) {
       // Modification successful - update the buffer with the new character
       this.lastChar = modified;
-      return { success: true, newChar: modified, oldChar };
+      this.lastTimeStamp = currentTimeStamp;
+      return { success: true, newChar: modified, oldChar, timeStamp };
     }
 
     // Modification not applicable to this character
-    return { success: false, newChar: null, oldChar: null };
+    return { success: false, newChar: null, oldChar: null, timeStamp: 0 };
   }
 
   /**
