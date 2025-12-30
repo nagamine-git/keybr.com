@@ -44,8 +44,22 @@ export class Keyboard {
       characters.set(id, keyChars);
     }
 
-    for (const { id, a, b, c, d } of characters.values()) {
-      if (KeyCharacters.isCodePoint(a)) {
+    // Get chord modifier keys (D, K, F) that should not be registered as standalone keys
+    const chordModifierKeys = new Set<KeyId>();
+    if (layout.chordMetadata?.chordModifiers) {
+      for (const keyId of Object.keys(layout.chordMetadata.chordModifiers)) {
+        chordModifierKeys.add(keyId);
+      }
+    }
+
+    for (const keyChars of characters.values()) {
+      const { id, a, b, c, d } = keyChars;
+
+      // Skip base character (index 0) for chord modifier keys
+      // They should only work in combination with other keys
+      const isChordModifier = chordModifierKeys.has(id);
+
+      if (KeyCharacters.isCodePoint(a) && !isChordModifier) {
         addCombo(combos, a, id, KeyModifier.None);
       }
       if (KeyCharacters.isCodePoint(b)) {
@@ -56,6 +70,17 @@ export class Keyboard {
       }
       if (KeyCharacters.isCodePoint(d)) {
         addCombo(combos, d, id, KeyModifier.ShiftAlt);
+      }
+
+      // For chord layouts, add combos for extended character array
+      // This includes post-modifier results (dakuten, handakuten) and chord layers
+      if (keyChars.characters && keyChars.characters.length > 4) {
+        for (let i = 1; i < keyChars.characters.length; i++) {
+          const char = keyChars.characters[i];
+          if (KeyCharacters.isCodePoint(char)) {
+            addCombo(combos, char, id, KeyModifier.None);
+          }
+        }
       }
     }
 

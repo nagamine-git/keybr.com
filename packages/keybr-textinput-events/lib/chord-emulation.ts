@@ -31,41 +31,39 @@ export function chordEmulation(
   }
 
   // State for pre-modifier (prefix shift) handling
-  let pendingPreModifier: { code: KeyId; timeStamp: number; event: IKeyboardEvent } | null = null;
+  // Support multiple pre-modifiers (e.g., K then D for combined layers)
+  const pendingPreModifiers: Map<KeyId, { timeStamp: number; event: IKeyboardEvent }> = new Map();
+  const PRE_MODIFIER_TIMEOUT = 500; // ms - time window for sequential pre-modifier input
+  let preModifierTimeout: NodeJS.Timeout | null = null;
 
   // Check if a key is a pre-modifier (chord modifier key)
   const isPreModifier = (code: KeyId): boolean => {
     return chordMeta.chordModifiers[code] !== undefined;
   };
 
-  // Flush pending pre-modifier (output its base character)
-  const flushPendingPreModifier = () => {
-    if (!pendingPreModifier) return;
+  // Clear pending pre-modifiers
+  const clearPendingPreModifiers = () => {
+    console.log('[TIMEOUT] Clearing pending pre-modifiers');
+    pendingPreModifiers.clear();
+    if (preModifierTimeout) {
+      clearTimeout(preModifierTimeout);
+      preModifierTimeout = null;
+    }
+  };
 
-    const { code, timeStamp, event: modEvent } = pendingPreModifier;
-    console.log('[FLUSH] Flushing pre-modifier:', code);
-    const characters = keyboard.getCharacters(code);
-    if (characters) {
-      const modifier = toKeyModifier(modEvent.modifiers);
-      // Use getCodePoint directly for base layer (layer 0)
-      const codePoint = characters.getCodePoint(modifier);
-      console.log('[FLUSH] Base character lookup for', code, ':', codePoint ? String.fromCodePoint(codePoint) : 'null');
+  // Calculate combined chord layer from all pending pre-modifiers
+  const getCombinedChordLayer = (): number => {
+    if (pendingPreModifiers.size === 0) return 0;
 
-      if (codePoint !== null) {
-        postModBuffer.recordChar(codePoint, timeStamp);
-
-        const inputEvent: IInputEvent = {
-          type: "input",
-          timeStamp,
-          inputType: "appendChar",
-          codePoint,
-          timeToType: 0,
-        };
-        target.onInput(inputEvent);
-      }
+    // Sum all pre-modifier layers
+    let combinedLayer = 0;
+    for (const [code, _] of pendingPreModifiers) {
+      const layer = chordMeta.chordModifiers[code] ?? 0;
+      combinedLayer += layer;
     }
 
-    pendingPreModifier = null;
+    console.log('[LAYER] Combined layer from', Array.from(pendingPreModifiers.keys()), '=', combinedLayer);
+    return combinedLayer;
   };
 
   return {
@@ -73,8 +71,8 @@ export function chordEmulation(
       // Check if this is a post-modifier key
       const postModFn = chordMeta.postModifiers[event.code];
       if (postModFn) {
-        // Flush pending pre-modifier before post-modification
-        flushPendingPreModifier();
+        // Clear pending pre-modifiers before post-modification
+        clearPendingPreModifiers();
 
         const result = postModBuffer.tryModify(postModFn, event.timeStamp);
         console.log('[POST-MOD] tryModify result:', result);
@@ -113,28 +111,39 @@ export function chordEmulation(
         return;
       }
 
-      // Determine if we're using a chord layer from a pending pre-modifier
-      let chordLayer = 0;
-      if (pendingPreModifier) {
-        // Use the pre-modifier to determine the chord layer
-        chordLayer = chordMeta.chordModifiers[pendingPreModifier.code] ?? 0;
-        console.log('[CHORD] Using chord layer', chordLayer, 'from pre-modifier', pendingPreModifier.code, 'for key', event.code);
-        // Clear the pending pre-modifier (it's been consumed)
-        pendingPreModifier = null;
-      }
-      // If no pending pre-modifier AND this key is a pre-modifier, store it
-      else if (isPreModifier(event.code)) {
-        // Store this pre-modifier as pending (don't output yet)
-        pendingPreModifier = {
-          code: event.code,
-          timeStamp: event.timeStamp,
-          event,
-        };
-        console.log('[PRE-MOD] Stored pre-modifier:', event.code, '-> layer', chordMeta.chordModifiers[event.code]);
+      // Check if this key is a pre-modifier
+      if (isPreModifier(event.code)) {
+        // If there are already pending pre-modifiers, treat this key as a regular character key
+        // This allows K -> D to output "ら" (D at layer 5)
+        if (pendingPreModifiers.size > 0) {
+          console.log('[PRE-MOD] Pre-modifier', event.code, 'pressed with pending modifiers - treating as regular key');
+          // Don't add to pending, fall through to regular key handling
+        } else {
+          // Add this pre-modifier to the pending set
+          pendingPreModifiers.set(event.code, {
+            timeStamp: event.timeStamp,
+            event,
+          });
+          console.log('[PRE-MOD] Added pre-modifier:', event.code, '-> layer', chordMeta.chordModifiers[event.code], '| Total pending:', pendingPreModifiers.size);
 
-        // Pass through the keydown event
-        target.onKeyDown(event);
-        return;
+          // Reset timeout - extend the window for sequential input
+          if (preModifierTimeout) {
+            clearTimeout(preModifierTimeout);
+          }
+          preModifierTimeout = setTimeout(clearPendingPreModifiers, PRE_MODIFIER_TIMEOUT);
+
+          // Pass through the keydown event
+          target.onKeyDown(event);
+          return;
+        }
+      }
+
+      // This is a regular character key (or pre-modifier treated as regular) - check if we have pending pre-modifiers
+      const chordLayer = getCombinedChordLayer();
+      if (chordLayer > 0) {
+        console.log('[CHORD] Using combined chord layer', chordLayer, 'for key', event.code);
+        // Clear pending pre-modifiers (they've been consumed)
+        clearPendingPreModifiers();
       }
 
       // Get the character for this key + chord layer + modifiers
@@ -165,12 +174,10 @@ export function chordEmulation(
     },
 
     onKeyUp: (event: IKeyboardEvent): void => {
-      // Flush pending pre-modifier when the key is released
-      // This handles the case where the user presses a pre-modifier and releases it
-      // without pressing another key
-      if (pendingPreModifier && pendingPreModifier.code === event.code) {
-        console.log('[KEYUP] Pre-modifier released without consuming:', event.code);
-        flushPendingPreModifier();
+      // Pre-modifiers are released but kept in pending state
+      // They will be cleared by timeout or consumed by the next regular key
+      if (isPreModifier(event.code)) {
+        console.log('[KEYUP] Pre-modifier released:', event.code, '| Pending:', Array.from(pendingPreModifiers.keys()));
       }
 
       target.onKeyUp(event);
@@ -182,7 +189,7 @@ export function chordEmulation(
         if (event.inputType === "clearChar" || event.inputType === "clearWord") {
           // Clear both buffers
           postModBuffer.clear();
-          pendingPreModifier = null;
+          clearPendingPreModifiers();
         }
         target.onInput(event);
       }
