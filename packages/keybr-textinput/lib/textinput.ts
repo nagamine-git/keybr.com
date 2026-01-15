@@ -116,15 +116,79 @@ export class TextInput {
       case "appendLineBreak":
         return this.appendChar(timeStamp, 0x0020, timeToType);
       case "clearChar":
-        return this.clearChar();
+        return this.clearChar(timeStamp, codePoint, timeToType);
       case "clearWord":
         return this.clearWord();
     }
   }
 
-  clearChar(): Feedback {
-    this.#garbage.pop();
-    this.#typo = true;
+  clearChar(
+    timeStamp: number,
+    codePoint: CodePoint,
+    timeToType: number,
+  ): Feedback {
+    const garbageItem = this.#garbage.pop();
+    console.log('[TEXTINPUT clearChar] Removed from garbage:', garbageItem, 'timeToType:', timeToType);
+
+    // For post-modifier transformations (dakuten/handakuten):
+    // There are two cases:
+    // 1. The base character was correctly typed (in steps)
+    // 2. The base character was a typo (in garbage)
+
+    if (timeToType > 0) {
+      // This is a post-modifier transformation (timeToType > 0 is the indicator)
+      console.log('[TEXTINPUT clearChar] Post-modifier transformation detected');
+
+      if (garbageItem === undefined && this.#steps.length > 0) {
+        // Case 1: Base character was in steps (correctly typed)
+        const lastStep = this.#steps[this.#steps.length - 1];
+        console.log('[TEXTINPUT clearChar] Base character from steps:', String.fromCodePoint(lastStep.codePoint));
+
+        // Update the timing to the actual measured time
+        const updatedStep = {
+          ...lastStep,
+          timeToType,
+        };
+
+        // Remove the step from the list (it will be replaced by the transformed character)
+        this.#steps.pop();
+
+        // Record the timing for statistics
+        console.log('[TEXTINPUT clearChar] Recording timing for base character:', timeToType, 'ms');
+        this.onStep(updatedStep);
+
+        // Don't set typo flag - this is a valid transformation
+        this.#typo = false;
+      } else if (garbageItem !== undefined) {
+        // Case 2: Base character was in garbage (typed as error)
+        console.log('[TEXTINPUT clearChar] Base character from garbage:', String.fromCodePoint(garbageItem.codePoint));
+
+        // Create a step with the actual timing for statistics
+        const step: Step = {
+          timeStamp: garbageItem.timeStamp,
+          codePoint: garbageItem.codePoint,
+          timeToType,
+          typo: false, // It's being transformed, so not counted as a typo
+        };
+
+        // Record the timing for statistics
+        console.log('[TEXTINPUT clearChar] Recording timing for garbage base character:', timeToType, 'ms');
+        this.onStep(step);
+
+        // Don't set typo flag - this is a valid transformation
+        this.#typo = false;
+      }
+    } else if (this.#garbage.length === 0 && garbageItem !== undefined) {
+      // Normal case: garbage had exactly one item which we just removed
+      console.log('[TEXTINPUT clearChar] Cleared one garbage item (normal backspace)');
+      this.#typo = false;
+    } else if (this.#steps.length > 0) {
+      // Normal backspace - remove step and set typo flag
+      const removed = this.#steps.pop();
+      console.log('[TEXTINPUT clearChar] Normal backspace - removed step:', removed);
+      this.#typo = true;
+    }
+    console.log('[TEXTINPUT clearChar] typo flag:', this.#typo, 'garbage length:', this.#garbage.length, 'pos:', this.pos);
     return this.#return(Feedback.Succeeded);
   }
 

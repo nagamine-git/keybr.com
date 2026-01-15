@@ -4,8 +4,10 @@ import {
   keyboardProps,
   KeyModifier,
 } from "@keybr/keyboard";
+import { type KeyId } from "@keybr/keyboard/lib/types.ts";
 import { type Settings } from "@keybr/settings";
 import { type CodePoint } from "@keybr/unicode";
+import { chordEmulation } from "./chord-emulation.ts";
 import { isTextInput } from "./modifiers.ts";
 import { TimeToType } from "./timetotype.ts";
 import {
@@ -18,7 +20,14 @@ export function emulateLayout(
   settings: Settings,
   keyboard: Keyboard,
   target: InputListener,
+  getDepressedKeys?: () => readonly KeyId[],
 ): InputListener {
+  // Check for chord layout first (uses prefix shift, not simultaneous detection)
+  if (keyboard.layout.chordMetadata) {
+    return chordEmulationWithTiming(keyboard, target);
+  }
+
+  // Standard emulation for non-chord layouts
   if (keyboard.layout.emulate) {
     switch (settings.get(keyboardProps.emulation)) {
       case Emulation.Forward:
@@ -28,6 +37,52 @@ export function emulateLayout(
     }
   }
   return target;
+}
+
+/**
+ * Wraps chord emulation with timing measurement.
+ */
+function chordEmulationWithTiming(
+  keyboard: Keyboard,
+  target: InputListener,
+): InputListener {
+  const timeToType = new TimeToType();
+  const chordListener = chordEmulation(keyboard, {
+    onKeyDown: (event) => {
+      target.onKeyDown(event);
+    },
+    onKeyUp: (event) => {
+      target.onKeyUp(event);
+    },
+    onInput: (event) => {
+      // Add timing measurement to input events from chord emulation
+      if (event.inputType === "appendChar" || event.inputType === "clearChar") {
+        // If timeToType > 0, it's a post-modifier transformation with already calculated timing
+        // Otherwise, measure timing from keyboard events
+        const measuredTime = event.timeToType > 0 ? event.timeToType : timeToType.measure(event);
+        target.onInput({
+          ...event,
+          timeToType: measuredTime,
+        });
+      } else {
+        target.onInput(event);
+      }
+    },
+  });
+
+  return {
+    onKeyDown: (event) => {
+      timeToType.add(event);
+      chordListener.onKeyDown(event);
+    },
+    onKeyUp: (event) => {
+      timeToType.add(event);
+      chordListener.onKeyUp(event);
+    },
+    onInput: (event) => {
+      chordListener.onInput(event);
+    },
+  };
 }
 
 /**
@@ -137,7 +192,7 @@ function fixCode(
   return { type, timeStamp, code, key, modifiers };
 }
 
-function toKeyModifier(modifiers: readonly ModifierId[]): KeyModifier {
+export function toKeyModifier(modifiers: readonly ModifierId[]): KeyModifier {
   return KeyModifier.from(
     modifiers.includes("Shift"),
     modifiers.includes("AltGraph"),

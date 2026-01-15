@@ -31,6 +31,8 @@ export class KeyCharacters {
   readonly b: Character | null;
   readonly c: Character | null;
   readonly d: Character | null;
+  /** Extended character array for chord layouts (optional, length 7+) */
+  readonly characters?: readonly (Character | null)[];
 
   constructor(
     id: KeyId,
@@ -38,12 +40,14 @@ export class KeyCharacters {
     b: Character | null,
     c: Character | null,
     d: Character | null,
+    characters?: readonly (Character | null)[],
   ) {
     this.id = id;
     this.a = a || null;
     this.b = b || null;
     this.c = c || null;
     this.d = d || null;
+    this.characters = characters;
   }
 
   getCodePoint(modifier: KeyModifier): CodePoint | null {
@@ -59,6 +63,40 @@ export class KeyCharacters {
       default:
         throw new Error();
     }
+  }
+
+  /**
+   * Gets the code point for a chord layout key press.
+   * Supports extended character arrays with multiple chord layers.
+   *
+   * @param chordLayer The chord layer index (0 = base, 4 = ★, 5 = ☆, 6 = ※)
+   * @param modifier The key modifier (None, Shift, Alt, ShiftAlt)
+   * @returns The code point for the key+layer+modifier combination, or null
+   *
+   * Character array slots for chord layouts (length 7):
+   * [0] = None, [1] = Shift, [2] = Alt, [3] = ShiftAlt,
+   * [4] = ★ (KeyD), [5] = ☆ (KeyK), [6] = ※ (KeyF)
+   */
+  getCodePointForChord(
+    chordLayer: number,
+    modifier: KeyModifier,
+  ): CodePoint | null {
+    // If no extended characters or base layer, use standard method
+    if (!this.characters || this.characters.length <= 4 || chordLayer === 0) {
+      return this.getCodePoint(modifier);
+    }
+
+    // For chord layers, the layer index IS the base index
+    // Standard modifiers don't apply within chord layers for this layout
+    // (each chord layer only has one character per key)
+    const char = this.characters[chordLayer];
+
+    // Fallback: try base layer with modifier if chord layer is empty
+    if (char == null) {
+      return this.getCodePoint(modifier);
+    }
+
+    return select(char);
   }
 
   get valid() {

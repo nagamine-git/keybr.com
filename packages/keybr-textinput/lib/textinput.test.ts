@@ -121,14 +121,14 @@ test("accumulate and delete garbage", () => {
   equal(textInput.pos, 0);
   isFalse(textInput.completed);
 
-  equal(textInput.clearChar(), Feedback.Succeeded);
+  equal(textInput.clearChar(0, 0, 0), Feedback.Succeeded);
   equal(showSteps(textInput), "");
   equal(showChars(textInput), "*x|[a]|b|c");
   equal(textInput.length, 3);
   equal(textInput.pos, 0);
   isFalse(textInput.completed);
 
-  equal(textInput.clearChar(), Feedback.Succeeded);
+  equal(textInput.clearChar(0, 0, 0), Feedback.Succeeded);
   equal(showSteps(textInput), "");
   equal(showChars(textInput), "[a]|b|c");
   equal(textInput.length, 3);
@@ -175,14 +175,14 @@ test("handle backspace at the start of a word", () => {
   equal(textInput.pos, 0);
   isFalse(textInput.completed);
 
-  equal(textInput.clearChar(), Feedback.Succeeded);
+  equal(textInput.clearChar(0, 0, 0), Feedback.Succeeded);
   equal(showSteps(textInput), "");
   equal(showChars(textInput), "[a]|b|c");
   equal(textInput.length, 3);
   equal(textInput.pos, 0);
   isFalse(textInput.completed);
 
-  equal(textInput.clearChar(), Feedback.Succeeded);
+  equal(textInput.clearChar(0, 0, 0), Feedback.Succeeded);
   equal(showSteps(textInput), "");
   equal(showChars(textInput), "[a]|b|c");
   equal(textInput.length, 3);
@@ -218,14 +218,14 @@ test("handle backspace in the middle of a word", () => {
   equal(textInput.pos, 1);
   isFalse(textInput.completed);
 
-  equal(textInput.clearChar(), Feedback.Succeeded);
+  equal(textInput.clearChar(0, 0, 0), Feedback.Succeeded);
   equal(showSteps(textInput), "a,100,101");
   equal(showChars(textInput), "a|[b]|c");
   equal(textInput.length, 3);
   equal(textInput.pos, 1);
   isFalse(textInput.completed);
 
-  equal(textInput.clearChar(), Feedback.Succeeded);
+  equal(textInput.clearChar(0, 0, 0), Feedback.Succeeded);
   equal(showSteps(textInput), "a,100,101");
   equal(showChars(textInput), "a|[b]|c");
   equal(textInput.length, 3);
@@ -392,14 +392,14 @@ test("space in garbage", () => {
   equal(textInput.pos, 0);
   isFalse(textInput.completed);
 
-  equal(textInput.clearChar(), Feedback.Succeeded);
+  equal(textInput.clearChar(0, 0, 0), Feedback.Succeeded);
   equal(showSteps(textInput), "");
   equal(showChars(textInput), "*x|[a]|b|c");
   equal(textInput.length, 3);
   equal(textInput.pos, 0);
   isFalse(textInput.completed);
 
-  equal(textInput.clearChar(), Feedback.Succeeded);
+  equal(textInput.clearChar(0, 0, 0), Feedback.Succeeded);
   equal(showSteps(textInput), "");
   equal(showChars(textInput), "[a]|b|c");
   equal(textInput.length, 3);

@@ -114,6 +114,7 @@ function useLessonState(
           timeout.schedule(handleResetLesson, 10000);
         },
       },
+      () => state.depressedKeys,
     );
     return {
       state,

@@ -1,7 +1,9 @@
 import { Enum, XEnum, type XEnumItem } from "@keybr/lang";
 import { Geometry } from "./geometry.ts";
 import { Language } from "./language.ts";
+import { TSUKI_2_263_CHORD_METADATA } from "./layout/ja_tsuki_2_263.ts";
 import { angleMod, angleWideMod, type Mod, nullMod } from "./mod.ts";
+import { type ChordLayoutMetadata } from "./types.ts";
 
 export class Layout implements XEnumItem {
   static custom(language: Language) {
@@ -1321,6 +1323,23 @@ export class Layout implements XEnumItem {
     /* emulate= */ false,
     /* geometries= */ new Enum(Geometry.ANSI_101),
   );
+  static readonly JA_TSUKI_2_263 = new Layout(
+    /* id= */ "ja-tsuki-2-263",
+    /* xid= */ 0xba,
+    /* name= */ "月配列2-263",
+    /* family= */ "ja-tsuki",
+    /* language= */ Language.JA,
+    /* emulate= */ false,
+    /* geometries= */ new Enum(
+      Geometry.ANSI_101,
+      Geometry.ANSI_101_FULL,
+      Geometry.ISO_102,
+      Geometry.ISO_102_FULL,
+      Geometry.MATRIX,
+    ),
+    /* mod= */ nullMod,
+    /* chordMetadata= */ TSUKI_2_263_CHORD_METADATA,
+  );
 
   static readonly ALL = new XEnum<Layout>(
     Layout.EN_US,
@@ -1384,6 +1403,7 @@ export class Layout implements XEnumItem {
     Layout.HU_HU,
     Layout.IT_IT,
     // Layout.JA_JP,
+    Layout.JA_TSUKI_2_263,
     Layout.LT_LT,
     Layout.LV_LV,
     Layout.NB_NO,
@@ -1472,6 +1492,7 @@ export class Layout implements XEnumItem {
     readonly emulate: boolean,
     readonly geometries: Enum<Geometry>,
     readonly mod: Mod = nullMod,
+    readonly chordMetadata?: ChordLayoutMetadata,
   ) {
     Object.freeze(this);
   }

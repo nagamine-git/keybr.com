@@ -1,5 +1,6 @@
 import {
   type DeadCharacter,
+  type Keyboard,
   KeyCharacters,
   type KeyShape,
   type LabelShape,
@@ -22,9 +23,14 @@ export type KeyProps = {
 export function makeKeyComponent(
   { letterName }: Language,
   shape: KeyShape,
+  keyboard?: Keyboard,
 ): FunctionComponent<KeyProps> {
   const { isCodePoint, isDead, isLigature } = KeyCharacters;
   const { id, a, b, c, d } = shape;
+
+  // Get extended characters for chord layouts (e.g., 月配列2-263)
+  const keyChars = keyboard?.characters.get(id);
+  const extendedChars = keyChars?.characters;
   const x = shape.x * keySize;
   const y = shape.y * keySize;
   const w = shape.w * keySize - keyGap;
@@ -93,6 +99,28 @@ export function makeKeyComponent(
   if (isLigature(d)) {
     children.push(makeLigatureLabel(d, 25, 12, styles.secondarySymbol));
   }
+
+  // Display extended characters for chord layouts (layers 4, 5, 6)
+  if (extendedChars && extendedChars.length > 4) {
+    // Layer 4: ★ (KeyD chord) - display on right side, top
+    const e = extendedChars[4];
+    if (isCodePoint(e)) {
+      children.push(makeCodePointLabel(e, 33, 10, styles.secondarySymbol));
+    }
+
+    // Layer 5: ☆ (KeyK chord) - display on right side, middle
+    const f = extendedChars[5];
+    if (isCodePoint(f)) {
+      children.push(makeCodePointLabel(f, 33, 20, styles.secondarySymbol));
+    }
+
+    // Layer 6: ※ (KeyF chord) - display on right side, bottom
+    const g = extendedChars[6];
+    if (isCodePoint(g)) {
+      children.push(makeCodePointLabel(g, 33, 30, styles.secondarySymbol));
+    }
+  }
+
   const zoneClassName = zoneClassNameOf(shape);
   function KeyComponent({
     depressed,

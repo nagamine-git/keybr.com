@@ -131,7 +131,19 @@ export class GuidedLesson extends Lesson {
   #getLetters() {
     const { letters } = this.model;
     const { codePoints } = this;
-    if (this.settings.get(lessonProps.guided.keyboardOrder)) {
+    // For 月配列2-263, always use keyboard order (custom learning progression)
+    const useTsukiOrder = this.keyboard.layout.id === "ja-tsuki-2-263";
+
+    // Debug logging (remove after verification)
+    if (useTsukiOrder) {
+      console.log("月配列2-263: カスタム学習順序を使用");
+      const sampleWeights = letters.slice(0, 10).map(l =>
+        `${String.fromCodePoint(l.codePoint)}:${codePoints.weight(l.codePoint)}`
+      );
+      console.log("サンプル文字のweight:", sampleWeights.join(", "));
+    }
+
+    if (this.settings.get(lessonProps.guided.keyboardOrder) || useTsukiOrder) {
       return Letter.weightedFrequencyOrder(letters, ({ codePoint }) =>
         codePoints.weight(codePoint),
       );
