@@ -6,6 +6,7 @@ import { KeyModifier } from "./keymodifier.ts";
 import { KeyShape } from "./keyshape.ts";
 import { getExampleLetters, getExampleText } from "./language.ts";
 import { type Layout } from "./layout.ts";
+import { SHINGETSU_LEARNING_ORDER } from "./layout/ja_shingetsu.ts";
 import { TSUKI_2_263_LEARNING_ORDER } from "./layout/ja_tsuki_2_263.ts";
 import {
   type CharacterDict,
@@ -142,8 +143,20 @@ export class Keyboard {
     const list: CodePoint[] = [];
     const weights = new Map<CodePoint, number>();
 
-    // Check if this is 月配列2-263 layout - use custom learning order
+    // Check if this layout uses custom learning order
     const useTsukiLearningOrder = this.layout.id === "ja-tsuki-2-263";
+    const useShingetsuLearningOrder = this.layout.id === "ja-shingetsu";
+
+    // Get the appropriate learning order map
+    const getCustomWeight = (codePoint: CodePoint): number | undefined => {
+      if (useTsukiLearningOrder) {
+        return TSUKI_2_263_LEARNING_ORDER.get(codePoint);
+      }
+      if (useShingetsuLearningOrder) {
+        return SHINGETSU_LEARNING_ORDER.get(codePoint);
+      }
+      return undefined;
+    };
 
     for (const combo of this.combos.values()) {
       const shape = this.getShape(combo.id);
@@ -155,9 +168,9 @@ export class Keyboard {
       ) {
         list.push(combo.codePoint);
 
-        if (useTsukiLearningOrder) {
-          // Use custom learning order for 月配列2-263
-          const customWeight = TSUKI_2_263_LEARNING_ORDER.get(combo.codePoint);
+        if (useTsukiLearningOrder || useShingetsuLearningOrder) {
+          // Use custom learning order
+          const customWeight = getCustomWeight(combo.codePoint);
           if (customWeight != null) {
             weights.set(combo.codePoint, customWeight);
           }
@@ -186,9 +199,9 @@ export class Keyboard {
             if (KeyCharacters.isCodePoint(char)) {
               list.push(char);
 
-              if (useTsukiLearningOrder) {
+              if (useTsukiLearningOrder || useShingetsuLearningOrder) {
                 // Use custom learning order for chord characters
-                const customWeight = TSUKI_2_263_LEARNING_ORDER.get(char);
+                const customWeight = getCustomWeight(char);
                 if (customWeight != null) {
                   weights.set(char, customWeight);
                 }

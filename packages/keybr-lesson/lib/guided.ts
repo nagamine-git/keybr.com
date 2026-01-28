@@ -4,6 +4,7 @@ import { Filter, Letter, type PhoneticModel } from "@keybr/phonetic-model";
 import { type RNGStream } from "@keybr/rand";
 import { type KeyStatsMap } from "@keybr/result";
 import { type Settings } from "@keybr/settings";
+import { type CodePoint } from "@keybr/unicode";
 import { Dictionary, filterWordList } from "./dictionary.ts";
 import { LessonKey, LessonKeys } from "./key.ts";
 import { Lesson } from "./lesson.ts";
@@ -129,21 +130,32 @@ export class GuidedLesson extends Lesson {
   }
 
   #getLetters() {
-    const { letters } = this.model;
+    let { letters } = this.model;
     const { codePoints } = this;
-    // For 月配列2-263, always use keyboard order (custom learning progression)
+    // For chord-based Japanese layouts, always use keyboard order (custom learning progression)
     const useTsukiOrder = this.keyboard.layout.id === "ja-tsuki-2-263";
+    const useShingetsuOrder = this.keyboard.layout.id === "ja-shingetsu";
+    const useCustomOrder = useTsukiOrder || useShingetsuOrder;
 
-    // Debug logging (remove after verification)
-    if (useTsukiOrder) {
-      console.log("月配列2-263: カスタム学習順序を使用");
-      const sampleWeights = letters.slice(0, 10).map(l =>
-        `${String.fromCodePoint(l.codePoint)}:${codePoints.weight(l.codePoint)}`
-      );
-      console.log("サンプル文字のweight:", sampleWeights.join(", "));
+    // For chord layouts, add missing characters that are not in the phonetic model
+    // but are available on the keyboard (e.g., ヴ and ぅ for Shingetsu)
+    if (useCustomOrder) {
+      const existingCodePoints = new Set(letters.map((l) => l.codePoint));
+      const additionalLetters: Letter[] = [];
+
+      for (const cp of codePoints) {
+        if (!existingCodePoints.has(cp)) {
+          // Add missing characters with low frequency (they'll be sorted by weight anyway)
+          additionalLetters.push(new Letter(cp, 0.001));
+        }
+      }
+
+      if (additionalLetters.length > 0) {
+        letters = [...letters, ...additionalLetters];
+      }
     }
 
-    if (this.settings.get(lessonProps.guided.keyboardOrder) || useTsukiOrder) {
+    if (this.settings.get(lessonProps.guided.keyboardOrder) || useCustomOrder) {
       return Letter.weightedFrequencyOrder(letters, ({ codePoint }) =>
         codePoints.weight(codePoint),
       );

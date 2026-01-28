@@ -1,6 +1,7 @@
 import { Enum, XEnum, type XEnumItem } from "@keybr/lang";
 import { Geometry } from "./geometry.ts";
 import { Language } from "./language.ts";
+import { SHINGETSU_CHORD_METADATA } from "./layout/ja_shingetsu.ts";
 import { TSUKI_2_263_CHORD_METADATA } from "./layout/ja_tsuki_2_263.ts";
 import { angleMod, angleWideMod, type Mod, nullMod } from "./mod.ts";
 import { type ChordLayoutMetadata } from "./types.ts";
@@ -1340,6 +1341,23 @@ export class Layout implements XEnumItem {
     /* mod= */ nullMod,
     /* chordMetadata= */ TSUKI_2_263_CHORD_METADATA,
   );
+  static readonly JA_SHINGETSU = new Layout(
+    /* id= */ "ja-shingetsu",
+    /* xid= */ 0xbb,
+    /* name= */ "新月配列",
+    /* family= */ "ja-shingetsu",
+    /* language= */ Language.JA,
+    /* emulate= */ false,
+    /* geometries= */ new Enum(
+      Geometry.ANSI_101,
+      Geometry.ANSI_101_FULL,
+      Geometry.ISO_102,
+      Geometry.ISO_102_FULL,
+      Geometry.MATRIX,
+    ),
+    /* mod= */ nullMod,
+    /* chordMetadata= */ SHINGETSU_CHORD_METADATA,
+  );
 
   static readonly ALL = new XEnum<Layout>(
     Layout.EN_US,
@@ -1404,6 +1422,7 @@ export class Layout implements XEnumItem {
     Layout.IT_IT,
     // Layout.JA_JP,
     Layout.JA_TSUKI_2_263,
+    Layout.JA_SHINGETSU,
     Layout.LT_LT,
     Layout.LV_LV,
     Layout.NB_NO,

@@ -102,7 +102,8 @@ export class Language implements EnumItem {
     /* id= */ "ja",
     /* script= */ "hiragana",
     /* direction= */ "ltr",
-    /* alphabet= */ "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをんがぎぐげござじずぜぞだぢづでどばびぶべぼぱぴぷぺぽぁぃぇぉゃゅょっー",
+    // Custom learning order for 新月配列
+    /* alphabet= */ "いうんしかのとたてくなにきはこるがでっょすまじりもつおらをさあれだちせけーよどゅそえわみめひばやろほふゃぶねごぎげむずびざぐぜへべゆぼぷぞぱぃぽぇづぴぁぬぺぉヴぢぅ",
   );
   static readonly LT = new Language(
     /* id= */ "lt",
@@ -342,6 +343,13 @@ export class Language implements EnumItem {
         return codePoint >= 0x0370 && codePoint <= 0x03ff;
       case "hebrew":
         return codePoint >= 0x0590 && codePoint <= 0x05ff;
+      case "hiragana":
+        // Hiragana block (0x3040-0x309f), Katakana block (0x30a0-0x30ff for ヴ),
+        // and Katakana-Hiragana Prolonged Sound Mark ー (0x30fc)
+        return (
+          (codePoint >= 0x3040 && codePoint <= 0x309f) ||
+          (codePoint >= 0x30a0 && codePoint <= 0x30ff)
+        );
       case "latin":
         // A few Unicode blocks of the Latin script to include only
         // a reasonable list of letter codepoints.

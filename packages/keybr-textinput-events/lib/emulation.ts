@@ -60,6 +60,7 @@ function chordEmulationWithTiming(
         // If timeToType > 0, it's a post-modifier transformation with already calculated timing
         // Otherwise, measure timing from keyboard events
         const measuredTime = event.timeToType > 0 ? event.timeToType : timeToType.measure(event);
+        console.log('[EMULATION] Forwarding', event.inputType, 'with timeToType:', measuredTime);
         target.onInput({
           ...event,
           timeToType: measuredTime,

@@ -110,6 +110,7 @@ export class TextInput {
     readonly codePoint: CodePoint;
     readonly timeToType: number;
   }): Feedback {
+    console.log('[TEXTINPUT onInput]', inputType, codePoint ? String.fromCodePoint(codePoint) : 'N/A', 'timeToType:', timeToType);
     switch (inputType) {
       case "appendChar":
         return this.appendChar(timeStamp, codePoint, timeToType);

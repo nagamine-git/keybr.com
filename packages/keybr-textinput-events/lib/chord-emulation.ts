@@ -33,7 +33,7 @@ export function chordEmulation(
   // State for pre-modifier (prefix shift) handling
   // Support multiple pre-modifiers (e.g., K then D for combined layers)
   const pendingPreModifiers: Map<KeyId, { timeStamp: number; event: IKeyboardEvent }> = new Map();
-  const PRE_MODIFIER_TIMEOUT = 500; // ms - time window for sequential pre-modifier input
+  const PRE_MODIFIER_TIMEOUT = 2000; // ms - time window for sequential pre-modifier input
   let preModifierTimeout: NodeJS.Timeout | null = null;
 
   // Check if a key is a pre-modifier (chord modifier key)
@@ -70,10 +70,18 @@ export function chordEmulation(
     onKeyDown: (event: IKeyboardEvent): void => {
       // Check if this is a post-modifier key
       const postModFn = chordMeta.postModifiers[event.code];
-      if (postModFn) {
-        // Clear pending pre-modifiers before post-modification
-        clearPendingPreModifiers();
 
+      // If this key is a post-modifier BUT we have pending pre-modifiers,
+      // treat it as a regular character key instead (e.g., D -> L = わ)
+      const hasPendingPreModifiers = pendingPreModifiers.size > 0;
+
+      // Debug log for post-modifier keys
+      if (postModFn !== undefined) {
+        console.log('[KEY] Post-modifier key pressed:', event.code, '| Has pending:', hasPendingPreModifiers, '| Pending keys:', Array.from(pendingPreModifiers.keys()));
+      }
+
+      if (postModFn !== undefined && !hasPendingPreModifiers) {
+        // Use as post-modifier only when no pending pre-modifiers
         const result = postModBuffer.tryModify(postModFn, event.timeStamp);
         console.log('[POST-MOD] tryModify result:', result);
         if (result.success && result.newChar !== null && result.oldChar !== null) {
@@ -109,10 +117,15 @@ export function chordEmulation(
         // Pass through the keydown event and return
         target.onKeyDown(event);
         return;
+      } else if (postModFn !== undefined && hasPendingPreModifiers) {
+        console.log('[POST-MOD] Post-modifier', event.code, 'with pending pre-modifiers - treating as regular key');
+        // Fall through to regular key handling
       }
 
       // Check if this key is a pre-modifier
-      if (isPreModifier(event.code)) {
+      // Only treat as pre-modifier if no keyboard modifiers (Shift/Alt) are pressed
+      const hasModifiers = event.modifiers.includes("Shift") || event.modifiers.includes("Alt");
+      if (isPreModifier(event.code) && !hasModifiers) {
         // If there are already pending pre-modifiers, treat this key as a regular character key
         // This allows K -> D to output "ら" (D at layer 5)
         if (pendingPreModifiers.size > 0) {
@@ -165,6 +178,7 @@ export function chordEmulation(
             codePoint,
             timeToType: 0,
           };
+          console.log('[CHORD-EMU] Sending appendChar:', String.fromCodePoint(codePoint), 'at', event.timeStamp);
           target.onInput(inputEvent);
         }
       }

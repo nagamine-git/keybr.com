@@ -4,7 +4,8 @@
 import { type CharacterDict, type ChordLayoutMetadata } from "../types.ts";
 import { type CodePoint } from "@keybr/unicode";
 
-// Character array slots: [None, Shift, Alt, ShiftAlt, ★(KeyD), ☆(KeyK)]
+// Character array slots: [None, Shift, Alt, ShiftAlt, ★(KeyD), ☆(KeyK), ☆+゜(handakuten)]
+// Extended slots (index 6+) for post-modifier results to enable key preview
 
 // prettier-ignore
 export const LAYOUT_JA_TSUKI_2_263: CharacterDict = {
@@ -25,9 +26,9 @@ export const LAYOUT_JA_TSUKI_2_263: CharacterDict = {
 
   // QWERTY row
   KeyQ: [/* そ */ 0x305d, null, null, null, null, /* ぁ */ 0x3041],
-  KeyW: [/* こ */ 0x3053, null, null, null, null, /* ひ */ 0x3072],
-  KeyE: [/* し */ 0x3057, null, null, null, null, /* ほ */ 0x307b],
-  KeyR: [/* て */ 0x3066, null, null, null, null, /* ふ */ 0x3075],
+  KeyW: [/* こ */ 0x3053, null, null, null, null, /* ひ */ 0x3072, /* ぴ */ 0x3074],
+  KeyE: [/* し */ 0x3057, null, null, null, null, /* ほ */ 0x307b, /* ぽ */ 0x307d],
+  KeyR: [/* て */ 0x3066, null, null, null, null, /* ふ */ 0x3075, /* ぷ */ 0x3077],
   KeyT: [/* ょ */ 0x3087, null, null, null, null, /* め */ 0x3081],
   KeyY: [/* つ */ 0x3064, null, null, null, /* ぬ */ 0x306c, null],
   KeyU: [/* ん */ 0x3093, null, null, null, /* え */ 0x3048, null],
@@ -53,7 +54,7 @@ export const LAYOUT_JA_TSUKI_2_263: CharacterDict = {
 
   // ZXCV row
   KeyZ: [/* す */ 0x3059, /* ず */ 0x305a, null, null, null, /* ぅ */ 0x3045],
-  KeyX: [/* け */ 0x3051, /* げ */ 0x3052, null, null, null, /* へ */ 0x3078],
+  KeyX: [/* け */ 0x3051, /* げ */ 0x3052, null, null, null, /* へ */ 0x3078, /* ぺ */ 0x307a],
   KeyC: [/* に */ 0x306b, null, null, null, null, /* せ */ 0x305b],
   KeyV: [/* な */ 0x306a, null, null, null, null, /* ゅ */ 0x3085],
   KeyB: [/* さ */ 0x3055, /* ざ */ 0x3056, null, null, null, /* ゃ */ 0x3083],
