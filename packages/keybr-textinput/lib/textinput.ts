@@ -110,7 +110,6 @@ export class TextInput {
     readonly codePoint: CodePoint;
     readonly timeToType: number;
   }): Feedback {
-    console.log('[TEXTINPUT onInput]', inputType, codePoint ? String.fromCodePoint(codePoint) : 'N/A', 'timeToType:', timeToType);
     switch (inputType) {
       case "appendChar":
         return this.appendChar(timeStamp, codePoint, timeToType);
@@ -128,68 +127,47 @@ export class TextInput {
     codePoint: CodePoint,
     timeToType: number,
   ): Feedback {
-    const garbageItem = this.#garbage.pop();
-    console.log('[TEXTINPUT clearChar] Removed from garbage:', garbageItem, 'timeToType:', timeToType);
+    // A non-zero code point marks a post-modifier transformation
+    // (dakuten/handakuten chord), where the base character is replaced by the
+    // transformed one. A zero code point is an ordinary backspace.
+    if (codePoint !== 0x0000) {
+      const garbageItem = this.#garbage.pop();
 
-    // For post-modifier transformations (dakuten/handakuten):
-    // There are two cases:
-    // 1. The base character was correctly typed (in steps)
-    // 2. The base character was a typo (in garbage)
-
-    if (timeToType > 0) {
-      // This is a post-modifier transformation (timeToType > 0 is the indicator)
-      console.log('[TEXTINPUT clearChar] Post-modifier transformation detected');
-
+      // For post-modifier transformations there are two cases:
+      // 1. The base character was correctly typed (in steps).
+      // 2. The base character was a typo (in garbage).
       if (garbageItem === undefined && this.#steps.length > 0) {
-        // Case 1: Base character was in steps (correctly typed)
+        // Case 1: Base character was in steps (correctly typed). Replace its
+        // recorded timing with the actual measured time before it is replaced
+        // by the transformed character.
         const lastStep = this.#steps[this.#steps.length - 1];
-        console.log('[TEXTINPUT clearChar] Base character from steps:', String.fromCodePoint(lastStep.codePoint));
-
-        // Update the timing to the actual measured time
         const updatedStep = {
           ...lastStep,
           timeToType,
         };
-
-        // Remove the step from the list (it will be replaced by the transformed character)
         this.#steps.pop();
-
-        // Record the timing for statistics
-        console.log('[TEXTINPUT clearChar] Recording timing for base character:', timeToType, 'ms');
         this.onStep(updatedStep);
-
-        // Don't set typo flag - this is a valid transformation
         this.#typo = false;
       } else if (garbageItem !== undefined) {
-        // Case 2: Base character was in garbage (typed as error)
-        console.log('[TEXTINPUT clearChar] Base character from garbage:', String.fromCodePoint(garbageItem.codePoint));
-
-        // Create a step with the actual timing for statistics
+        // Case 2: Base character was in garbage (typed as error). Record a step
+        // with the actual timing for statistics; it is not a typo because it is
+        // being transformed.
         const step: Step = {
           timeStamp: garbageItem.timeStamp,
           codePoint: garbageItem.codePoint,
           timeToType,
-          typo: false, // It's being transformed, so not counted as a typo
+          typo: false,
         };
-
-        // Record the timing for statistics
-        console.log('[TEXTINPUT clearChar] Recording timing for garbage base character:', timeToType, 'ms');
         this.onStep(step);
-
-        // Don't set typo flag - this is a valid transformation
         this.#typo = false;
       }
-    } else if (this.#garbage.length === 0 && garbageItem !== undefined) {
-      // Normal case: garbage had exactly one item which we just removed
-      console.log('[TEXTINPUT clearChar] Cleared one garbage item (normal backspace)');
-      this.#typo = false;
-    } else if (this.#steps.length > 0) {
-      // Normal backspace - remove step and set typo flag
-      const removed = this.#steps.pop();
-      console.log('[TEXTINPUT clearChar] Normal backspace - removed step:', removed);
-      this.#typo = true;
+      return this.#return(Feedback.Succeeded);
     }
-    console.log('[TEXTINPUT clearChar] typo flag:', this.#typo, 'garbage length:', this.#garbage.length, 'pos:', this.pos);
+
+    // Ordinary backspace: drop the most recent garbage character and mark the
+    // current position as a typo.
+    this.#garbage.pop();
+    this.#typo = true;
     return this.#return(Feedback.Succeeded);
   }
 

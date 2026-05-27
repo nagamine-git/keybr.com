@@ -172,8 +172,8 @@
 - `0xb7`:
 - `0xb8`: English/Enthium V10 (Matrix)
 - `0xb9`: English/Enthium V11 (Matrix)
-- `0xba`:
-- `0xbb`:
+- `0xba`: Japanese/月配列2-263
+- `0xbb`: Japanese/新月配列
 - `0xbc`:
 - `0xbd`:
 - `0xbe`:
@@ -243,7 +243,7 @@
 - `0xfe`:
 - `0xff`:
 
-91 allocated identifiers
+93 allocated identifiers
 
-149 free identifiers
+147 free identifiers
 
