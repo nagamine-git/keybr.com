@@ -20,6 +20,8 @@ import {
 
 export class GuidedLesson extends Lesson {
   readonly dictionary: Dictionary;
+  readonly #useCustomOrder: boolean;
+  readonly #letters: readonly Letter[];
 
   constructor(
     settings: Settings,
@@ -33,10 +35,35 @@ export class GuidedLesson extends Lesson {
         (word) => word.length > 2,
       ),
     );
+    // 月配列系のチョード配列は独自の学習順を使い、音韻モデルに無いキーボード
+    // 文字も練習対象に含める。
+    this.#useCustomOrder =
+      this.keyboard.layout.id === "ja-tsuki-2-263" ||
+      this.keyboard.layout.id === "ja-shingetsu";
+    this.#letters = this.#computeLetters();
   }
 
   override get letters() {
-    return this.model.letters;
+    return this.#letters;
+  }
+
+  // get letters() と update() の双方がこの同一集合(同一インスタンス)を使う。
+  // チョード配列では音韻モデルに無いキーボード文字を補完する。両者がずれると
+  // keyStatsMap に登録されていないキーを update() が引いて undefined で落ちる。
+  #computeLetters(): readonly Letter[] {
+    const { letters } = this.model;
+    if (!this.#useCustomOrder) {
+      return letters;
+    }
+    const { codePoints } = this;
+    const existing = new Set(letters.map((l) => l.codePoint));
+    const additional: Letter[] = [];
+    for (const cp of codePoints) {
+      if (!existing.has(cp)) {
+        additional.push(new Letter(cp, 0.001));
+      }
+    }
+    return additional.length > 0 ? [...letters, ...additional] : letters;
   }
 
   override update(keyStatsMap: KeyStatsMap) {
@@ -130,37 +157,16 @@ export class GuidedLesson extends Lesson {
   }
 
   #getLetters() {
-    let { letters } = this.model;
     const { codePoints } = this;
-    // For chord-based Japanese layouts, always use keyboard order (custom learning progression)
-    const useTsukiOrder = this.keyboard.layout.id === "ja-tsuki-2-263";
-    const useShingetsuOrder = this.keyboard.layout.id === "ja-shingetsu";
-    const useCustomOrder = useTsukiOrder || useShingetsuOrder;
-
-    // For chord layouts, add missing characters that are not in the phonetic model
-    // but are available on the keyboard (e.g., ヴ and ぅ for Shingetsu)
-    if (useCustomOrder) {
-      const existingCodePoints = new Set(letters.map((l) => l.codePoint));
-      const additionalLetters: Letter[] = [];
-
-      for (const cp of codePoints) {
-        if (!existingCodePoints.has(cp)) {
-          // Add missing characters with low frequency (they'll be sorted by weight anyway)
-          additionalLetters.push(new Letter(cp, 0.001));
-        }
-      }
-
-      if (additionalLetters.length > 0) {
-        letters = [...letters, ...additionalLetters];
-      }
-    }
-
-    if (this.settings.get(lessonProps.guided.keyboardOrder) || useCustomOrder) {
-      return Letter.weightedFrequencyOrder(letters, ({ codePoint }) =>
+    if (
+      this.settings.get(lessonProps.guided.keyboardOrder) ||
+      this.#useCustomOrder
+    ) {
+      return Letter.weightedFrequencyOrder(this.#letters, ({ codePoint }) =>
         codePoints.weight(codePoint),
       );
     } else {
-      return Letter.frequencyOrder(letters);
+      return Letter.frequencyOrder(this.#letters);
     }
   }
 
