@@ -7,6 +7,9 @@ id_*
 # Compiled output
 packages/*/.types/
 root/public/assets/
+root/public/ja/
+root/public/_redirects
+root/public/_headers
 root/lib/
 
 # Other
